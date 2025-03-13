@@ -1,0 +1,182 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define ROWS 10
+#define SEATS_PER_ROW 6
+#define TABLE_SIZE 1000  // Hash table size for efficient PNR lookup
+
+// Structure for Passenger Booking
+typedef struct Booking {
+    int pnr;            // 4-digit Passenger Name Record
+    int row;            // Row number
+    int seat;           // Seat number
+    struct Booking* next;  // Pointer to next booking in case of hash collision
+} Booking;
+
+Booking* pnrTable[TABLE_SIZE];  // Hash table for fast PNR lookup
+int pnrCounter = 1000;  // Start PNR from 1000 for 4-digit numbers
+
+// Hash function to calculate index for PNR in hash table
+int hashFunction(int pnr) {
+    return pnr % TABLE_SIZE;
+}
+
+// Generate a unique 4-digit PNR for each booking
+int generatePNR() {
+    return pnrCounter++;  // Increment counter and return unique PNR
+}
+
+// Insert Booking into Hash Table
+void insertBooking(int pnr, int row, int seat) {
+    int index = hashFunction(pnr);  // Find the index using hash function
+    Booking* newBooking = (Booking*)malloc(sizeof(Booking));
+
+    if (newBooking == NULL) {
+        printf("Memory allocation failed.\n");
+        exit(1);
+    }
+
+    newBooking->pnr = pnr;
+    newBooking->row = row;
+    newBooking->seat = seat;
+    newBooking->next = pnrTable[index];  // Chain at the index
+    pnrTable[index] = newBooking;       // Insert booking at the hash table
+}
+
+// Search for a Booking using PNR
+Booking* searchPNR(int pnr) {
+    int index = hashFunction(pnr);
+    Booking* temp = pnrTable[index];
+
+    // Traverse linked list at the index to find the booking
+    while (temp) {
+        if (temp->pnr == pnr) return temp;
+        temp = temp->next;
+    }
+
+    return NULL;  // Booking not found
+}
+
+// Delete Booking from Hash Table
+void deleteBooking(int pnr) {
+    int index = hashFunction(pnr);
+    Booking* temp = pnrTable[index];
+    Booking* prev = NULL;
+
+    // Traverse the linked list to find and delete the booking
+    while (temp) {
+        if (temp->pnr == pnr) {
+            if (prev) prev->next = temp->next;
+            else pnrTable[index] = temp->next;
+            free(temp);
+            printf("Booking cancelled!\n");
+            return;
+        }
+        prev = temp;
+        temp = temp->next;
+    }
+
+    printf("Booking with PNR %d not found.\n", pnr);
+}
+
+// Booking System to reserve a seat
+void bookSeat() {
+    int row, seat;
+    
+    // User inputs for row and seat
+    printf("Enter row (1-%d) and seat (1-%d): ", ROWS, SEATS_PER_ROW);
+    scanf("%d %d", &row, &seat);
+
+    if (row < 1 || row > ROWS || seat < 1 || seat > SEATS_PER_ROW) {
+        printf("Invalid row or seat number.\n");
+        return;
+    }
+
+    // Generate unique PNR for the booking
+    int pnr = generatePNR();
+
+    // Insert booking into hash table
+    insertBooking(pnr, row, seat);
+
+    printf("Booking confirmed! PNR: %04d\n", pnr);  // Print PNR as 4 digits
+}
+
+// Check Booking using PNR
+void checkPNR() {
+    int pnr;
+    printf("Enter your 4-digit PNR number: ");
+    scanf("%d", &pnr);
+
+    if (pnr < 1000 || pnr > 9999) {
+        printf("Invalid PNR format. It must be a 4-digit number.\n");
+        return;
+    }
+
+    Booking* booking = searchPNR(pnr);
+    if (booking) {
+        printf("Booking found! Row: %d, Seat: %d\n", booking->row, booking->seat);
+    } else {
+        printf("No booking found with PNR %04d.\n", pnr);
+    }
+}
+
+// Cancel Booking using PNR
+void cancelBooking() {
+    int pnr;
+    printf("Enter PNR number to cancel: ");
+    scanf("%d", &pnr);
+
+    if (pnr < 1000 || pnr > 9999) {
+        printf("Invalid PNR format. It must be a 4-digit number.\n");
+        return;
+    }
+
+    // Delete the booking from hash table
+    deleteBooking(pnr);
+}
+
+// Display Menu and handle user choices
+void menu() {
+    int choice;
+    while (1) {
+        printf("\n1. Book Ticket\n2. Check PNR\n3. Cancel Booking\n4. Exit\n");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice) != 1) {
+            // If invalid input is entered
+            printf("Invalid input, please enter a number between 1 and 4.\n");
+            while (getchar() != '\n');  // Clear the input buffer
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                bookSeat();
+                break;
+            case 2:
+                checkPNR();
+                break;
+            case 3:
+                cancelBooking();
+                break;
+            case 4:
+                printf("Thank you for using the Flight Booking System. Goodbye!\n");
+                return;  // Exit the menu and end the program
+            default:
+                printf("Invalid choice! Please try again.\n");
+        }
+    }
+}
+
+int main() {
+    printf("Welcome to the Flight Booking System\n");
+    
+    // Initialize hash table to NULL
+    for (int i = 0; i < TABLE_SIZE; i++) {
+        pnrTable[i] = NULL;
+    }
+    
+    menu();  // Show the menu
+
+    return 0;
+}
